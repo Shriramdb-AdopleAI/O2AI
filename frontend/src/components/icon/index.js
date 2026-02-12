@@ -1,0 +1,11 @@
+export { default as FaxLogo } from './components/faxLogo';
+export { default as LoganimationsIconWhite } from './components/LoganimationsIconWhite';
+export { default as UploadIcon } from './components/UploadIcon';
+export { default as OCRProcessing } from './components/OCRProcessing';
+export { default as InsightsIcon } from './components/InsightsIcon';
+export { default as AlertsIcon } from './components/AlertsIcon';
+export { default as TotalFilesScannedIcon } from './components/TotalFilesScannedIcon';
+export { default as LastUpdatedIcon } from './components/LastUpdatedIcon';
+export { default as PendingFilesIcon } from './components/PendingFilesIcon';
+export { default as CompletedFilesIcon } from './components/CompletedFilesIcon';
+export { default as ScanningAccuracyIcon } from './components/ScanningAccuracyIcon';

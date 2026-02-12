@@ -1,0 +1,71 @@
+services:
+  # Unified Backend service (includes FastAPI + Celery + Redis)
+  backend:
+    build:
+      context: ..
+      dockerfile: deployment/backend/Dockerfile
+    container_name: backend
+    env_file:
+      - ./env.backend
+    environment:
+      - REDIS_HOST=localhost
+      - REDIS_URL=redis://localhost:6379/0
+      - PYTHONPATH=/app/backend
+    ports:
+      - "8001:8000"  # Backend API
+      - "6379:6379"  # Redis (optional, for external access)
+    volumes:
+      # Mount data directories for persistence
+      - ../backend/data:/app/backend/data
+      - ../backend/keys:/app/backend/keys:ro
+      # Mount logs directory
+      - backend-logs:/app/logs
+      # Mount Redis data directory
+      - redis-data:/app/redis-data
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8000/api/v1/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - ocr-network
+    restart: unless-stopped
+
+  # Frontend Nginx service
+  frontend:
+    build:
+      context: ..
+      dockerfile: deployment/frontend/Dockerfile
+      args:
+        - VITE_API_BASE_URL=
+    container_name: ocr-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - ocr-network
+    restart: unless-stopped
+
+# Named volumes for data persistence
+volumes:
+  redis-data:
+    driver: local
+  backend-logs:
+    driver: local
+
+# Custom bridge network for service communication
+networks:
+  ocr-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

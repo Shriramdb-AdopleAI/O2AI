@@ -1,0 +1,207 @@
+import os
+import re
+from docx import Document
+from docx.shared import Inches, Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+
+def add_table_from_markdown(doc, table_lines):
+    """Convert markdown table to Word table"""
+    if not table_lines:
+        return
+    
+    # Parse header
+    header_line = table_lines[0]
+    headers = [cell.strip() for cell in header_line.split('|')[1:-1]]
+    
+    # Parse rows
+    rows_data = []
+    for line in table_lines[2:]:  # Skip separator line
+        if '|' in line:
+            row = [cell.strip() for cell in line.split('|')[1:-1]]
+            if row:
+                rows_data.append(row)
+    
+    if not headers or not rows_data:
+        return
+    
+    # Create table
+    table = doc.add_table(rows=len(rows_data) + 1, cols=len(headers))
+    table.style = 'Light Grid Accent 1'
+    
+    # Add header row
+    header_cells = table.rows[0].cells
+    for i, header in enumerate(headers):
+        header_cells[i].text = header
+        # Make header bold
+        for paragraph in header_cells[i].paragraphs:
+            for run in paragraph.runs:
+                run.font.bold = True
+            paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    
+    # Add data rows
+    for row_idx, row_data in enumerate(rows_data, start=1):
+        row_cells = table.rows[row_idx].cells
+        for col_idx, cell_data in enumerate(row_data):
+            if col_idx < len(row_cells):
+                # Handle cell content with potential markdown
+                # For simplicity, we'll just strip basic markdown boldness for now or keep it plain
+                # A better approach replaces bold markers but for this table content usually it is simple.
+                # The user text has some **bold**, let's simple-clean it or just parse it.
+                # This script's main loop parses paragraphs, but table cells are added directly as text.
+                # Let's do a quick bold replacement if needed.
+                cell_text = cell_data
+                cell_text = cell_text.replace('**', '') 
+                wrapper = row_cells[col_idx].paragraphs[0]
+                wrapper.text = "" # clear default
+                run = wrapper.add_run(cell_text)
+                # If the original text had bold, we lost it, but the instruction is "simple doc".
+                # If we want rich text in cells we need more logic. 
+                # Given the user request, "simple document" implies the information is what matters.
+                # However, preserving bolding like "Azure Portal" might be nice.
+                # Let's just dump the text for now to match the existing script's behavior 
+                # (which was: row_cells[col_idx].text = cell_data).
+                # Actually usage in logic above was: row_cells[col_idx].text = cell_data
+                row_cells[col_idx].text = cell_data
+
+    
+    doc.add_paragraph()  # Add spacing after table
+
+def parse_markdown_to_docx(markdown_file, docx_file):
+    """Convert markdown file to DOCX"""
+    
+    if not os.path.exists(markdown_file):
+        print(f"Error: File not found: {markdown_file}")
+        return
+
+    # Read markdown content
+    with open(markdown_file, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    # Create Word document
+    doc = Document()
+    
+    # Set default font
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Calibri'
+    font.size = Pt(11)
+    
+    # Parse markdown content
+    lines = content.split('\n')
+    i = 0
+    
+    while i < len(lines):
+        line = lines[i].strip()
+        
+        # Title (first # heading)
+        if line.startswith('# ') and i == 0:
+            title = line[2:].strip()
+            title_para = doc.add_heading(title, level=0)
+            title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            # Format title
+            for run in title_para.runs:
+                run.font.size = Pt(24)
+                run.font.bold = True
+            doc.add_paragraph()  # Add spacing
+            i += 1
+            continue
+        
+        # Section headings (# 1. Overview, etc. or ## 1. Azure...)
+        if line.startswith('## '):
+            section = line[3:].strip()
+            heading = doc.add_heading(section, level=1)
+            for run in heading.runs:
+                run.font.size = Pt(16)
+                run.font.bold = True
+            i += 1
+            continue
+            
+        if line.startswith('# '): # Just in case
+             section = line[2:].strip()
+             heading = doc.add_heading(section, level=1)
+             i += 1
+             continue
+        
+        # Horizontal rule
+        if line.startswith('---'):
+            doc.add_paragraph()  # Add spacing
+            i += 1
+            continue
+        
+        # Code block
+        if line.startswith('```'):
+            code_lines = []
+            i += 1
+            while i < len(lines) and not lines[i].strip().startswith('```'):
+                code_lines.append(lines[i])
+                i += 1
+            if code_lines:
+                code_text = '\n'.join(code_lines)
+                para = doc.add_paragraph(code_text)
+                # Format as monospace
+                for run in para.runs:
+                    run.font.name = 'Courier New'
+                    run.font.size = Pt(9)
+            doc.add_paragraph()  # Add spacing
+            i += 1
+            continue
+        
+        # Table detection
+        if '|' in line and i + 1 < len(lines) and '---' in lines[i+1]:
+            table_lines = []
+            # Collect all table lines
+            j = i
+            while j < len(lines) and '|' in lines[j]:
+                table_lines.append(lines[j])
+                j += 1
+            
+            add_table_from_markdown(doc, table_lines)
+            i = j
+            continue
+        
+        # Regular paragraph
+        if line:
+            # Convert markdown formatting
+            # Handle bold (**text**)
+            line = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', line)
+            # Handle italic (*text*) - simplified
+            # line = re.sub(r'(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)', r'<i>\1</i>', line)
+            
+            para = doc.add_paragraph()
+            
+            # Parse HTML-like tags and add runs
+            parts = re.split(r'(<b>.*?</b>|<i>.*?</i>)', line)
+            for part in parts:
+                if not part:
+                    continue
+                if part.startswith('<b>') and part.endswith('</b>'):
+                    text = part[3:-4]
+                    run = para.add_run(text)
+                    run.font.bold = True
+                elif part.startswith('<i>') and part.endswith('</i>'):
+                    text = part[3:-4]
+                    run = para.add_run(text)
+                    run.font.italic = True
+                else:
+                    # Remove any remaining HTML tags and <br>
+                    part = part.replace('<br>', '\n')
+                    clean_text = re.sub(r'<[^>]+>', '', part)
+                    if clean_text:
+                        para.add_run(clean_text)
+            
+            # Set paragraph alignment
+            para.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        
+        i += 1
+    
+    # Save document
+    doc.save(docx_file)
+    print(f"DOCX created successfully: {docx_file}")
+
+if __name__ == "__main__":
+    base_dir = r"c:\Users\admin\Downloads\O2AI\Deploy\O2AI-Fax_Automation"
+    markdown_file = os.path.join(base_dir, "ENV_VARIABLES_GUIDE.md")
+    docx_file = os.path.join(base_dir, "ENV_VARIABLES_GUIDE.docx")
+    parse_markdown_to_docx(markdown_file, docx_file)

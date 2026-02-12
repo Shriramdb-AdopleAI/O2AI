@@ -1,0 +1,67 @@
+FROM python:3.12-slim
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app/backend \
+    PATH="/app/backend:${PATH}"
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgl1 \
+    libglib2.0-0 \
+    wget \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app/backend
+
+# Copy and install Python dependencies first (for better layer caching)
+COPY backend/requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy backend application code
+COPY backend/ .
+
+# Create necessary directories with proper structure
+RUN mkdir -p \
+    /app/backend/data/tenants \
+    /app/backend/data/templates \
+    /app/backend/data/uploads \
+    /app/backend/keys \
+    /app/logs
+
+# Create non-root user for security
+RUN groupadd -r appuser --gid=1000 && \
+    useradd -r -g appuser --uid=1000 --home-dir=/app --no-log-init appuser
+
+# Create log files with proper permissions (must be writable by both root and appuser)
+RUN touch /app/ocr_processing.log \
+    /app/logs/ocr_processing.log \
+    /app/backend/ocr_processing.log && \
+    chmod 666 /app/ocr_processing.log \
+    /app/logs/ocr_processing.log \
+    /app/backend/ocr_processing.log
+
+# Set ownership and permissions
+RUN chown -R appuser:appuser /app && \
+    chmod -R 755 /app/backend && \
+    chmod -R 777 /app/backend/data && \
+    chmod -R 777 /app/logs && \
+    chmod 666 /app/ocr_processing.log
+
+# Expose application port
+EXPOSE 8000
+
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8000/api/v1/health || exit 1
+
+# Run as root (Celery will drop privileges using --uid flag)
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+
+

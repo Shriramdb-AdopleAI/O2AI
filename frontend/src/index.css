@@ -1,0 +1,195 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 221.2 83.2% 53.3%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217.2 91.2% 59.8%;
+    --primary-foreground: 222.2 84% 4.9%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 94.1%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  .customeGradian-manu {
+    background: #181F64;
+    background: linear-gradient(133deg, rgba(24, 31, 100, 1) 38%, rgba(9, 117, 187, 1) 100%);
+  }
+
+  .customeGradian-manu::after {
+    content: "";
+    height: 100%;
+    width: 50px;
+    position: absolute;
+    display: block;
+    background-image: url(./../public/menu-shadow.svg);
+    right: -10px;
+    top: 0;
+    z-index: -1;
+  }
+
+  .menuHighlites {
+    background: #18348D;
+    background: linear-gradient(134deg, rgba(24, 52, 141, 1) 38%, rgba(13, 76, 116, 1) 100%);
+  }
+
+  .main-contentner-bg {
+    background-image: url(./../public/main-bg.png);
+    background-size: cover;
+    min-height: calc(100vh - 180px);
+  }
+
+  .width-100-fix img {
+    width: 100% !important;
+  }
+
+  .height-full-calc {
+    min-height: calc(100vh - 200px);
+  }
+
+  @media (min-width: 640px) {
+    .height-full-calc {
+      min-height: calc(100vh - 300px);
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .height-full-calc {
+      min-height: calc(100vh - 370px);
+    }
+  }
+
+  .customewelcomImg {
+    height: auto;
+    min-height: 200px;
+  }
+
+  @media (min-width: 640px) {
+    .customewelcomImg {
+      height: 50%;
+    }
+  }
+
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Ensure text is always visible and properly wrapped */
+  .text-white {
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Prevent text overflow on small screens */
+  @media (max-width: 640px) {
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    p {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
+    }
+  }
+
+  /* Optional: Glassmorphism utility */
+  .transpertant-blurBg {
+    background: #d0daff61;
+    ;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid #bbc2ffad;
+  }
+
+  /* Animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes slideInFromTop {
+    from {
+      transform: translateY(-0.5rem);
+      opacity: 0;
+    }
+
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-in {
+    animation-duration: 0.3s;
+    animation-fill-mode: forwards;
+    animation-timing-function: ease-out;
+  }
+
+  .fade-in {
+    animation-name: fadeIn;
+  }
+
+  .slide-in-from-top-2 {
+    animation-name: slideInFromTop;
+  }
+}

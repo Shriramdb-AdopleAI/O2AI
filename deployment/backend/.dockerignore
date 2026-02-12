@@ -1,0 +1,117 @@
+# Prevent sensitive files from being copied into Docker image
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.*
+*.env
+.envrc
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info
+dist
+build
+.pytest_cache
+.coverage
+htmlcov
+.tox
+.mypy_cache
+.dmypy.json
+dmypy.json
+
+# Virtual environments
+venv
+env
+ENV
+.venv
+
+# Logs
+*.log
+logs
+*.log.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets and keys
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+secrets/
+keys/
+credentials/
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+docs/
+
+# CI/CD
+.github
+.gitlab-ci.yml
+.travis.yml
+Jenkinsfile
+azure-pipelines.yml
+
+# Docker
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Testing
+tests/
+test_*.py
+*_test.py
+.pytest_cache
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.swp
+
+# Node modules (if any)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# OS files
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Backup files
+*.backup
+*.old
+*.orig
+
+# Data files (should be mounted as volumes)
+data/
+uploads/
+*.csv
+*.xlsx
+*.xls

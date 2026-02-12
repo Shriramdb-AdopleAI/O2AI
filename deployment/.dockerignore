@@ -1,0 +1,6 @@
+# Exclude backup files
+*.backup
+env.backend.backup
+
+# Exclude documentation
+*.md

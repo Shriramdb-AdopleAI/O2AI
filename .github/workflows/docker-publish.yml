@@ -1,0 +1,144 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  id-token: write   
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout repository
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Setup Docker Buildx
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 3. Login to Docker Hub
+      - name: Log in to Docker Hub
+        run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ---------------- BACKEND ----------------
+      - name: Load Backend Environment Variables
+        run: cat backend/.env.production >> $GITHUB_ENV
+
+      - name: Build Backend Image
+        run: |
+          docker build \
+            -f deployment/backend/Dockerfile \
+            --build-arg AZURE_OPENAI_API_KEY="${AZURE_OPENAI_API_KEY}" \
+            --build-arg AZURE_OPENAI_ENDPOINT="${AZURE_OPENAI_ENDPOINT}" \
+            --build-arg OPENAI_API_VERSION="${OPENAI_API_VERSION}" \
+            --build-arg AZURE_OPENAI_DEPLOYMENT="${AZURE_OPENAI_DEPLOYMENT}" \
+            --build-arg AZURE_STORAGE_CONNECTION_STRING="${AZURE_STORAGE_CONNECTION_STRING}" \
+            --build-arg AZURE_STORAGE_ACCOUNT_URL="${AZURE_STORAGE_ACCOUNT_URL}" \
+            --build-arg AZURE_DOCUMENT_INTELLIGENCE_KEY="${AZURE_DOCUMENT_INTELLIGENCE_KEY}" \
+            --build-arg AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT="${AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT}" \
+            --build-arg EPIC_FHIR_PRIVATE_KEY_PATH="${EPIC_FHIR_PRIVATE_KEY_PATH}" \
+            --build-arg BASE_URL="${BASE_URL}" \
+            --build-arg EPIC_REDIRECT_URI="${EPIC_REDIRECT_URI}" \
+            --build-arg EPIC_CLIENT_ID="${EPIC_CLIENT_ID}" \
+            --build-arg EPIC_AUTHORIZATION_URL="${EPIC_AUTHORIZATION_URL}" \
+            --build-arg EPIC_TOKEN_URL="${EPIC_TOKEN_URL}" \
+            --build-arg EPIC_AUDIENCE="${EPIC_AUDIENCE}" \
+            --build-arg EPIC_SCOPES="${EPIC_SCOPES}" \
+            --build-arg EPIC_CLIENT_SECRET="${EPIC_CLIENT_SECRET}" \
+            --build-arg EPIC_FHIR_JWKS_URL="${EPIC_FHIR_JWKS_URL}" \
+            --build-arg EPIC_FALLBACK_ENCOUNTER_ID="${EPIC_FALLBACK_ENCOUNTER_ID}" \
+            --build-arg EPIC_FALLBACK_PATIENT_ID="${EPIC_FALLBACK_PATIENT_ID}" \
+            --build-arg PGHOST="${PGHOST}" \
+            --build-arg PGUSER="${PGUSER}" \
+            --build-arg PGPORT="${PGPORT}" \
+            --build-arg PGDATABASE="${PGDATABASE}" \
+            --build-arg PGPASSWORD="${PGPASSWORD}" \
+            --build-arg EMAIL="${EMAIL}" \
+            --build-arg REDIS_HOST="${REDIS_HOST}" \
+            --build-arg REDIS_URL="${REDIS_URL}" \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-backend:latest \
+            .
+
+      - name: Push Backend Image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-backend:latest
+
+      # ---------------- FRONTEND ----------------
+      - name: Load Frontend Environment Variables
+        run: cat frontend/.env.production >> $GITHUB_ENV
+
+      - name: Build Frontend Image
+        run: |
+          docker build \
+            -f deployment/frontend/Dockerfile \
+            --build-arg VITE_API_BASE_URL="${VITE_API_BASE_URL}" \
+            --build-arg VITE_AZURE_CLIENT_ID="${VITE_AZURE_CLIENT_ID}" \
+            --build-arg VITE_AZURE_TENANT_ID="${VITE_AZURE_TENANT_ID}" \
+            --build-arg VITE_AZURE_TENANT_MODE="${VITE_AZURE_TENANT_MODE}" \
+            --build-arg VITE_EPIC_CLIENT_ID="${VITE_EPIC_CLIENT_ID}" \
+            --build-arg VITE_EPIC_REDIRECT_URI="${VITE_EPIC_REDIRECT_URI}" \
+            --build-arg VITE_EPIC_AUTHORIZATION_URL="${VITE_EPIC_AUTHORIZATION_URL}" \
+            --build-arg VITE_EPIC_TOKEN_URL="${VITE_EPIC_TOKEN_URL}" \
+            --build-arg VITE_EPIC_AUDIENCE="${VITE_EPIC_AUDIENCE}" \
+            --build-arg VITE_EPIC_SCOPES="${VITE_EPIC_SCOPES}" \
+            --build-arg VITE_EPIC_CLIENT_SECRET="${VITE_EPIC_CLIENT_SECRET}" \
+            --build-arg VITE_ENABLE_HMR="${VITE_ENABLE_HMR}" \
+            --build-arg VITE_HMR_PORT="${VITE_HMR_PORT}" \
+            --build-arg VITE_HMR_PROTOCOL="${VITE_HMR_PROTOCOL}" \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-frontend:latest \
+            .
+
+      - name: Push Frontend Image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-frontend:latest
+
+      # ---------------- CELERY ----------------
+      - name: Build Celery Image
+        run: |
+          docker build \
+            -f deployment/backend/Dockerfile \
+            --target runtime \
+            --build-arg AZURE_OPENAI_API_KEY="${AZURE_OPENAI_API_KEY}" \
+            --build-arg AZURE_OPENAI_ENDPOINT="${AZURE_OPENAI_ENDPOINT}" \
+            --build-arg OPENAI_API_VERSION="${OPENAI_API_VERSION}" \
+            --build-arg AZURE_OPENAI_DEPLOYMENT="${AZURE_OPENAI_DEPLOYMENT}" \
+            --build-arg AZURE_STORAGE_CONNECTION_STRING="${AZURE_STORAGE_CONNECTION_STRING}" \
+            --build-arg AZURE_STORAGE_ACCOUNT_URL="${AZURE_STORAGE_ACCOUNT_URL}" \
+            --build-arg AZURE_DOCUMENT_INTELLIGENCE_KEY="${AZURE_DOCUMENT_INTELLIGENCE_KEY}" \
+            --build-arg AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT="${AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT}" \
+            --build-arg EPIC_FHIR_PRIVATE_KEY_PATH="${EPIC_FHIR_PRIVATE_KEY_PATH}" \
+            --build-arg BASE_URL="${BASE_URL}" \
+            --build-arg EPIC_REDIRECT_URI="${EPIC_REDIRECT_URI}" \
+            --build-arg EPIC_CLIENT_ID="${EPIC_CLIENT_ID}" \
+            --build-arg EPIC_AUTHORIZATION_URL="${EPIC_AUTHORIZATION_URL}" \
+            --build-arg EPIC_TOKEN_URL="${EPIC_TOKEN_URL}" \
+            --build-arg EPIC_AUDIENCE="${EPIC_AUDIENCE}" \
+            --build-arg EPIC_SCOPES="${EPIC_SCOPES}" \
+            --build-arg EPIC_CLIENT_SECRET="${EPIC_CLIENT_SECRET}" \
+            --build-arg EPIC_FHIR_JWKS_URL="${EPIC_FHIR_JWKS_URL}" \
+            --build-arg EPIC_FALLBACK_ENCOUNTER_ID="${EPIC_FALLBACK_ENCOUNTER_ID}" \
+            --build-arg EPIC_FALLBACK_PATIENT_ID="${EPIC_FALLBACK_PATIENT_ID}" \
+            --build-arg PGHOST="${PGHOST}" \
+            --build-arg PGUSER="${PGUSER}" \
+            --build-arg PGPORT="${PGPORT}" \
+            --build-arg PGDATABASE="${PGDATABASE}" \
+            --build-arg PGPASSWORD="${PGPASSWORD}" \
+            --build-arg EMAIL="${EMAIL}" \
+            --build-arg REDIS_HOST="${REDIS_HOST}" \
+            --build-arg REDIS_URL="${REDIS_URL}" \
+            -t ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-celery:latest \
+            .
+
+      - name: Push Celery Image
+        run: docker push ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-celery:latest
+
+      # ---------------- REDIS ----------------
+      - name: Pull and Push Redis Image
+        run: |
+          docker pull redis:7-alpine
+          docker tag redis:7-alpine ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-redis:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/fax-automation-redis:latest

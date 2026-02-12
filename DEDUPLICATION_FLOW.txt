@@ -1,0 +1,195 @@
+```
+FILE DEDUPLICATION FLOW
+=======================
+
+┌─────────────────────────────────────────────────────────────────────┐
+│                         FILE UPLOAD REQUEST                          │
+│                    (User uploads document.pdf)                       │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │  Calculate SHA256    │
+                    │  Hash of File        │
+                    │  (file_hash)         │
+                    └──────────┬───────────┘
+                               │
+                               ▼
+                    ┌──────────────────────┐
+                    │  Check Database      │
+                    │  for Existing Hash   │
+                    └──────────┬───────────┘
+                               │
+                ┌──────────────┴──────────────┐
+                │                             │
+                ▼                             ▼
+    ┌───────────────────┐         ┌───────────────────┐
+    │  DUPLICATE FOUND  │         │   NEW FILE        │
+    │  (Hash exists)    │         │   (Hash not found)│
+    └─────────┬─────────┘         └─────────┬─────────┘
+              │                             │
+              ▼                             ▼
+    ┌───────────────────┐         ┌───────────────────┐
+    │ Return Existing   │         │ Upload to Azure   │
+    │ Processed Data    │         │ Blob Storage      │
+    │                   │         │ (source folder)   │
+    │ ✅ Skip Upload    │         └─────────┬─────────┘
+    │ ✅ Skip OCR       │                   │
+    │ ✅ Instant Result │                   ▼
+    │ ✅ Save Costs     │         ┌───────────────────┐
+    └─────────┬─────────┘         │ Process with OCR  │
+              │                   │ (Azure Document   │
+              │                   │  Intelligence)    │
+              │                   └─────────┬─────────┘
+              │                             │
+              │                             ▼
+              │                   ┌───────────────────┐
+              │                   │ AI-Powered        │
+              │                   │ Extraction        │
+              │                   └─────────┬─────────┘
+              │                             │
+              │                             ▼
+              │                   ┌───────────────────┐
+              │                   │ Upload Processed  │
+              │                   │ JSON to Azure     │
+              │                   │ (processed folder)│
+              │                   └─────────┬─────────┘
+              │                             │
+              │                             ▼
+              │                   ┌───────────────────┐
+              │                   │ Store in Database │
+              │                   │ with file_hash    │
+              │                   └─────────┬─────────┘
+              │                             │
+              └─────────────┬───────────────┘
+                            │
+                            ▼
+                 ┌──────────────────────┐
+                 │   RETURN RESPONSE    │
+                 │   TO USER            │
+                 └──────────────────────┘
+
+
+STORAGE COMPARISON
+==================
+
+WITHOUT DEDUPLICATION:
+┌─────────────────────────────────────────────────────────────┐
+│ Upload #1: invoice.pdf                                      │
+│ ├─ Azure Blob: /source/tenant_2/invoice_20260116.pdf       │
+│ ├─ Database: Record #1 (no hash check)                     │
+│ └─ Processing Time: 5.2 seconds                            │
+│                                                             │
+│ Upload #2: invoice_copy.pdf (SAME FILE)                    │
+│ ├─ Azure Blob: /source/tenant_2/invoice_copy_20260116.pdf │
+│ ├─ Database: Record #2 (DUPLICATE!)                        │
+│ └─ Processing Time: 5.2 seconds                            │
+│                                                             │
+│ Upload #3: invoice_v2.pdf (SAME FILE)                      │
+│ ├─ Azure Blob: /source/tenant_2/invoice_v2_20260116.pdf   │
+│ ├─ Database: Record #3 (DUPLICATE!)                        │
+│ └─ Processing Time: 5.2 seconds                            │
+│                                                             │
+│ TOTAL:                                                      │
+│ ├─ Azure Storage: 3x file size                             │
+│ ├─ Database Records: 3 (2 duplicates)                      │
+│ ├─ Processing Time: 15.6 seconds                           │
+│ └─ OCR API Calls: 3                                        │
+└─────────────────────────────────────────────────────────────┘
+
+WITH DEDUPLICATION:
+┌────────────────────────────────────────────────────────────┐
+│ Upload #1: invoice.pdf                                     │
+│ ├─ Hash: a1b2c3d4e5f6... (NEW)                             │
+│ ├─ Azure Blob: /source/tenant_2/invoice_20260116.pdf       │
+│ ├─ Database: Record #1 with hash                           │
+│ └─ Processing Time: 5.2 seconds                            │
+│                                                            │
+│ Upload #2: invoice_copy.pdf (SAME FILE)                    │
+│ ├─ Hash: a1b2c3d4e5f6... (DUPLICATE DETECTED!)             │
+│ ├─ Azure Blob: SKIPPED ✅                                  │
+│ ├─ Database: Returns Record #1 ✅                          │
+│ └─ Processing Time: 0.1 seconds ✅                         │
+│                                                            │
+│ Upload #3: invoice_v2.pdf (SAME FILE)                      │
+│ ├─ Hash: a1b2c3d4e5f6... (DUPLICATE DETECTED!)             │
+│ ├─ Azure Blob: SKIPPED ✅                                  │
+│ ├─ Database: Returns Record #1 ✅                          │
+│ └─ Processing Time: 0.1 seconds ✅                         │
+│                                                            │
+│ TOTAL:                                                     │
+│ ├─ Azure Storage: 1x file size (67% SAVINGS!)              │
+│ ├─ Database Records: 1 (no duplicates)                     │
+│ ├─ Processing Time: 5.4 seconds (65% FASTER!)              │
+│ └─ OCR API Calls: 1 (67% SAVINGS!)                         │
+└────────────────────────────────────────────────────────────┘
+
+
+DATABASE SCHEMA
+===============
+
+ProcessedFile Table:
+┌────────────────────┬──────────────┬─────────────────────────────┐
+│ Column             │ Type         │ Description                 │
+├────────────────────┼──────────────┼─────────────────────────────┤
+│ id                 │ Integer      │ Primary key                 │
+│ file_hash          │ String(64)   │ SHA256 hash (UNIQUE INDEX)  │ ← KEY!
+│ processing_id      │ String(255)  │ Processing identifier       │
+│ tenant_id          │ String(255)  │ Tenant isolation            │
+│ filename           │ String(500)  │ Original filename           │
+│ source_blob_path   │ String(1000) │ Azure source file path      │
+│ processed_blob_path│ String(1000) │ Azure processed JSON path   │
+│ processed_data     │ JSONB        │ Complete OCR results        │
+│ ocr_confidence     │ String(10)   │ Confidence score            │
+│ created_at         │ DateTime     │ First upload timestamp      │
+│ updated_at         │ DateTime     │ Last update timestamp       │
+└────────────────────┴──────────────┴─────────────────────────────┘
+
+Deduplication Query:
+SELECT * FROM processed_files 
+WHERE file_hash = 'a1b2c3d4e5f6...' 
+  AND tenant_id = 'tenant_2'
+LIMIT 1;
+
+
+API RESPONSE EXAMPLES
+=====================
+
+NEW FILE RESPONSE:
+{
+  "status": "completed",
+  "duplicate": false,
+  "processing_id": "new-uuid-12345",
+  "file_info": {
+    "filename": "invoice.pdf",
+    "size_bytes": 245678
+  },
+  "key_value_pairs": { ... },
+  "blob_storage": {
+    "source": {
+      "blob_path": "main/Above-95%/source/tenant_2/invoice.pdf",
+      "duplicate": false
+    }
+  }
+}
+
+DUPLICATE FILE RESPONSE:
+{
+  "status": "completed",
+  "duplicate": true,  ← Indicates duplicate
+  "message": "File already processed - returned existing data",
+  "processing_id": "existing-uuid-67890",
+  "file_info": {
+    "filename": "invoice_copy.pdf",
+    "original_filename": "invoice.pdf",  ← Original file
+    "first_processed": "2026-01-15T10:30:00Z"  ← When first uploaded
+  },
+  "key_value_pairs": { ... },  ← Existing data
+  "blob_storage": {
+    "source": {
+      "blob_path": "main/Above-95%/source/tenant_2/invoice.pdf",
+      "duplicate": true  ← Reusing existing blob
+    }
+  }
+}
+```
