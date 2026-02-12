@@ -26,4 +26,8 @@ dist-ssr
 .env
 .venv
 venvdeployment/*.tar
-.env*
+
+# Explicitly allow production env files
+!backend/.env.production
+!frontend/.env.production
+!.env.production

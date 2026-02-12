@@ -26,3 +26,6 @@ dist-ssr
 .env
 .venv
 venv
+
+# Explicitly allow production env file
+!.env.production
