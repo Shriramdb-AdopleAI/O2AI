@@ -139,7 +139,7 @@ from datetime import datetime
 # Get the backend directory (parent of api directory)
 BACKEND_DIR = Path(__file__).parent.parent
 DATA_DIR = BACKEND_DIR / "data"
-
+TENANTS_BASE_DIR = (DATA_DIR / "tenants").resolve()
 
 def validate_tenant_id(tenant_id: str) -> str:
     """Validate and sanitize tenant_id to prevent path traversal attacks.
@@ -181,14 +181,13 @@ def get_tenant_dir(validated_tenant_id: str) -> Path:
     This function additionally enforces that the resulting path is
     contained within the expected base directory.
     """
-    tenant_dir = DATA_DIR / "tenants" / validated_tenant_id
+    tenant_dir = TENANTS_BASE_DIR / validated_tenant_id
 
     # Verify the resolved path is within the expected directory (defense in depth)
-    tenant_dir_resolved = tenant_dir.resolve()
-    expected_base = (DATA_DIR / "tenants").resolve()
+    tenant_dir_resolved = tenant_dir.resolve(strict=False)
     try:
-        # Ensure tenant_dir_resolved is inside expected_base (or equal to it)
-        tenant_dir_resolved.relative_to(expected_base)
+        # Ensure tenant_dir_resolved is inside TENANTS_BASE_DIR (or equal to it)
+        tenant_dir_resolved.relative_to(TENANTS_BASE_DIR)
     except ValueError as e:
         logger.error(f"Path traversal attempt detected for tenant_id '{validated_tenant_id}': {e}")
         raise HTTPException(status_code=400, detail="Invalid tenant path")
