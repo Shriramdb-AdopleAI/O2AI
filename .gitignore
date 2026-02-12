@@ -27,5 +27,3 @@ dist-ssr
 .venv
 venvdeployment/*.tar
 .env*
-backend/.env.production
-deployment/env.backend
